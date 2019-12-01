@@ -5,33 +5,32 @@ use std::fs;
 type AocResult<T> = std::result::Result<T, Box<Error>>;
 
 
-fn part1(masses: &Vec<i32>) -> AocResult<i32> {
-    let mut total = 0;
-    for mass in masses {
-        total += (mass / 3) - 2;
-    }
-    Ok(total)
+fn calc_fuel(mass: i32) -> i32 {
+    mass / 3 - 2
 }
 
-fn part2(masses: &Vec<i32>) -> AocResult<i32> {
+fn part1(masses: &Vec<i32>) -> i32 {
+    masses.into_iter().fold(0, |sum, &mass| sum + calc_fuel(mass))
+}
+
+fn part2(masses: &Vec<i32>) -> i32 {
     let mut total = 0;
-    for mass in masses {
-        let mut fuel = (mass / 3) - 2;
+    for &mass in masses {
+        let mut fuel = calc_fuel(mass);
         while fuel > 0 {
             total += fuel;
-            fuel = (fuel / 3) - 2;
+            fuel = calc_fuel(fuel);
         }
     }
-    Ok(total)
+    total
 }
 
-
 fn main() -> AocResult<()> {
-    let input: String = fs::read_to_string("input.txt")?;
+    let input = fs::read_to_string("input.txt")?;
     let masses = input.split_whitespace().map(|s| s.parse::<i32>()).collect::<Result<Vec<_>, _>>()?;
 
-    println!("{0}", part1(&masses)?);
-    println!("{0}", part2(&masses)?);
+    println!("{0}", part1(&masses));
+    println!("{0}", part2(&masses));
 
     Ok(())
 }
