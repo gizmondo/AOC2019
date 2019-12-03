@@ -1,75 +1,49 @@
 use std::error::Error;
 use std::fs;
-use std::cmp;
+use std::ops::RangeInclusive;
 use regex::Regex;
 
 type AocResult<T> = std::result::Result<T, Box<Error>>;
 
-#[derive(Debug)]
 struct Point {
     x: i32,
     y: i32
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq)]
 enum Orientation {
     Horizontal,
     Vertical
 }
 
-#[derive(Debug)]
 struct Interval {
     fixed_coord: i32,
-    varied_coord_first: i32,
-    varied_coord_second: i32,
+    first_coord: i32,
+    second_coord: i32,
     orientation: Orientation
 }
 
-#[derive(Debug)]
-enum Intersection {
-    P(Point),
-    I(Interval)
-}
-
 impl Interval {
-    fn find_intersection(a: &Interval, b: &Interval) -> Option<Intersection> {
-        if a.orientation == b.orientation {
-            if a.fixed_coord != b.fixed_coord {
-                return None;
-            }
-            let first = cmp::max(&a.varied_coord_first, &b.varied_coord_first);
-            let second = cmp::min(&a.varied_coord_second, &b.varied_coord_second);
-            if second < first {
-                None
-            } else if second == first {
-                let point = Interval::get_point(a.orientation, a.fixed_coord, *first);
-                Some(Intersection::P(point))
-            } else {
-                let interval = Interval {
-                    orientation: a.orientation,
-                    fixed_coord: a.fixed_coord,
-                    varied_coord_first: *first,
-                    varied_coord_second: *second
-                };
-                Some(Intersection::I(interval))
-            }
+    fn find_intersection(&self, other: &Interval) -> Option<Point> {
+        if self.orientation != other.orientation &&
+            other.get_range().contains(&self.fixed_coord) &&
+            self.get_range().contains(&other.fixed_coord)
+        {
+            let point = match self.orientation {
+                Orientation::Horizontal => Point {x: self.fixed_coord, y: other.fixed_coord},
+                Orientation::Vertical => Point {x: other.fixed_coord, y: self.fixed_coord}
+            };
+            Some(point)
         } else {
-            if a.fixed_coord >= b.varied_coord_first &&
-                a.fixed_coord <= b.varied_coord_second &&
-                b.fixed_coord >= a.varied_coord_first &&
-                b.fixed_coord <= b.varied_coord_second {
-                let point = Interval::get_point(a.orientation, a.fixed_coord, b.fixed_coord);
-                Some(Intersection::P(point))
-            } else {
-                None
-            }
+            None
         }
     }
 
-    fn get_point(orientation: Orientation, fixed_coord: i32, varied_coord: i32) -> Point {
-        match orientation {
-            Orientation::Horizontal => Point {x: varied_coord, y: fixed_coord},
-            Orientation::Vertical => Point {x: fixed_coord, y: varied_coord}
+    fn get_range(&self) -> RangeInclusive<i32> {
+        if self.first_coord < self.second_coord {
+            self.first_coord ..= self.second_coord
+        } else {
+            self.second_coord ..= self.first_coord
         }
     }
 }
@@ -98,8 +72,8 @@ impl Wire {
                     }
                     interval = Interval {
                         fixed_coord: cur_x,
-                        varied_coord_first: cmp::min(cur_y, next_y),
-                        varied_coord_second: cmp::max(cur_y, next_y),
+                        first_coord: cur_y,
+                        second_coord: next_y,
                         orientation: Orientation::Vertical,
                     };
                     cur_y = next_y;
@@ -113,8 +87,8 @@ impl Wire {
                     }
                     interval = Interval {
                         fixed_coord: cur_y,
-                        varied_coord_first: cmp::min(cur_x, next_x),
-                        varied_coord_second: cmp::max(cur_x, next_x),
+                        first_coord: cur_x,
+                        second_coord: next_x,
                         orientation: Orientation::Horizontal,
                     };
                     cur_x = next_x;
@@ -126,10 +100,10 @@ impl Wire {
         Ok(wire)
     }
 
-    fn find_all_intersections(wire1: &Wire, wire2: &Wire) -> Vec<Intersection> {
+    fn find_all_intersections(wire1: &Wire, wire2: &Wire) -> Vec<Point> {
         // O(first.len * second.len).
         // Could be improved to O(first.len * ln(second.len)) with bisect and interval tree.
-        let mut result: Vec<Intersection> = Vec::new();
+        let mut result: Vec<Point> = Vec::new();
         for first in &wire1.intervals {
             for second in &wire2.intervals {
                 match Interval::find_intersection(&first, &second) {
@@ -144,13 +118,8 @@ impl Wire {
 
 fn part1(wire1: &Wire, wire2: &Wire) -> AocResult<i32> {
     let mut result = None;
-    for intersection in Wire::find_all_intersections(wire1, wire2) {
-        let distance = match intersection {
-            Intersection::P(p) => p.x.abs() + p.y.abs(),
-            Intersection::I(i) => i.fixed_coord + cmp::min(
-                0, cmp::min(i.varied_coord_first.abs(), i.varied_coord_second.abs())
-            )
-        };
+    for point in Wire::find_all_intersections(wire1, wire2) {
+        let distance = point.x.abs() + point.y.abs();
         if distance == 0 {
             // We ignore intersection in the initial point
             continue;
@@ -191,17 +160,17 @@ mod tests {
         );
         assert_eq!(
             part1(
-                &Wire::new("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51")?,
-                &Wire::new("U98,R91,D20,R16,D67,R40,U7,R15,U6,R7")?
-            )?,
-            135
-        );
-        assert_eq!(
-            part1(
                 &Wire::new("R75,D30,R83,U83,L12,D49,R71,U7,L72")?,
                 &Wire::new("U62,R66,U55,R34,D71,R55,D58,R83")?
             )?,
             159
+        );
+        assert_eq!(
+            part1(
+                &Wire::new("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51")?,
+                &Wire::new("U98,R91,D20,R16,D67,R40,U7,R15,U6,R7")?
+            )?,
+            135
         );
         Ok(())
     }
