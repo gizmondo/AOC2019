@@ -73,7 +73,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_part1() -> AocResult<()> {
+    fn test_exec() -> AocResult<()> {
         assert_eq!(exec(vec![1,0,0,0,99])?, 2);
         assert_eq!(exec(vec![2,3,0,3,99])?, 2);
         assert_eq!(exec(vec![1,1,1,4,99,5,6,0,99])?, 30);
