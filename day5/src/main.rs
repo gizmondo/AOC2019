@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fs;
 use std::io::{BufReader, BufRead, Read, BufWriter, Write};
 
-
 type AocResult<T> = std::result::Result<T, Box<Error>>;
 
 macro_rules! err {
@@ -29,6 +28,10 @@ enum Op {
     Mul,
     Input,
     Output,
+    Jit,
+    Jif,
+    Lt,
+    Eq,
     Halt
 }
 
@@ -62,6 +65,10 @@ impl Intcode {
             2 => (Op::Mul, 3),
             3 => (Op::Input, 1),
             4 => (Op::Output, 1),
+            5 => (Op::Jit, 2),
+            6 => (Op::Jif, 2),
+            7 => (Op::Lt, 3),
+            8 => (Op::Eq, 3),
             99 => (Op::Halt, 0),
             illegal => return err!("Illegal opcode {} at position {}", illegal, self.pc)
         };
@@ -80,20 +87,29 @@ impl Intcode {
         Ok(Instruction {op, args})
     }
 
-    fn exec(&mut self) -> AocResult<i32> {
+    fn exec(&mut self) -> AocResult<()> {
         while self.pc < self.program.len() && self.halted != true {
             let instruction = self.parse()?;
             let len = instruction.args.len();
             match instruction.op {
-                Op::Add => self.add(&instruction.args),
-                Op::Mul => self.mul(&instruction.args),
-                Op::Input => self.input(&instruction.args)?,
-                Op::Output => self.output(&instruction.args)?,
                 Op::Halt => self.halt(),
+                Op::Jit => self.jump_if_true(&instruction.args),
+                Op::Jif => self.jump_if_false(&instruction.args),
+                _ => {
+                    self.pc += len + 1;
+                    match instruction.op {
+                        Op::Add => self.add(&instruction.args),
+                        Op::Mul => self.mul(&instruction.args),
+                        Op::Input => self.input(&instruction.args)?,
+                        Op::Output => self.output(&instruction.args)?,
+                        Op::Lt => self.less(&instruction.args),
+                        Op::Eq => self.equal(&instruction.args),
+                        _ => unreachable!()
+                    }
+                }
             }
-            self.pc += len + 1;
         }
-        Ok(self.program[0])
+        Ok(())
     }
 
     fn get_value(&self, arg: &Arg) -> i32 {
@@ -114,7 +130,7 @@ impl Intcode {
     fn input(&mut self, args: &Vec<Arg>) -> AocResult<()> {
         let mut line = String::new();
         self.input.read_line(&mut line)?;
-        self.program[args[0].value as usize] = line.parse()?;
+        self.program[args[0].value as usize] = line.trim().parse()?;
         Ok(())
     }
 
@@ -123,39 +139,53 @@ impl Intcode {
         Ok(())
     }
 
+    fn jump_if_true(&mut self, args: &Vec<Arg>) {
+        if self.get_value(&args[0]) != 0 {
+            self.pc = self.get_value(&args[1]) as usize;
+        } else {
+            self.pc += 3;
+        }
+    }
+
+    fn jump_if_false(&mut self, args: &Vec<Arg>) {
+        if self.get_value(&args[0]) == 0 {
+            self.pc = self.get_value(&args[1]) as usize;
+        } else {
+            self.pc += 3;
+        }
+    }
+
+    fn less(&mut self, args: &Vec<Arg>) {
+        let value;
+        if self.get_value(&args[0]) < self.get_value(&args[1]) {
+            value = 1;
+        } else {
+            value = 0;
+        }
+        self.program[args[2].value as usize] = value;
+    }
+
+    fn equal(&mut self, args: &Vec<Arg>) {
+        let value;
+        if self.get_value(&args[0]) == self.get_value(&args[1]) {
+            value = 1;
+        } else {
+            value = 0;
+        }
+        self.program[args[2].value as usize] = value;
+    }
+
     fn halt(&mut self) {
         self.halted = true;
     }
 }
 
-fn exec(program: &Vec<i32>) -> AocResult<i32> {
-    Intcode::new(
-        program.clone(),
-        Box::new("1".as_bytes()),
-        Box::new(std::io::stdout()),
-    ).exec()
-}
-
 fn main() -> AocResult<()> {
     let input = fs::read_to_string("input.txt")?;
     let program = input.split(',').map(|s| s.parse::<i32>()).collect::<Result<Vec<_>, _>>()?;
-    exec(&program)?;
-    Ok(())
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_exec() -> AocResult<()> {
-        assert_eq!(exec(vec![1,0,0,0,99])?, 2);
-        assert_eq!(exec(vec![2,3,0,3,99])?, 2);
-        assert_eq!(exec(vec![1,1,1,4,99,5,6,0,99])?, 30);
-        assert_eq!(exec(vec![2,4,4,5,99,0])?, 2);
-        assert_eq!(exec(vec![1,9,10,3,2,3,11,0,99,30,40,50])?, 3500);
-        assert!(exec(vec![666]).is_err());
-        Ok(())
-    }
+    Intcode::new(
+        program,
+        Box::new(std::io::stdin()),
+        Box::new(std::io::stdout()),
+    ).exec()
 }
