@@ -56,7 +56,8 @@ fn part2(image: &Vec<i32>) {
 fn main() -> AocResult<()> {
     let input = std::fs::read_to_string("input.txt")?
         .trim()
-        .chars().map(|ch| ch as i32 - '0' as i32)
+        .chars()
+        .map(|ch| ch as i32 - '0' as i32)
         .collect();
     println!("{}", part1(&input));
     part2(&input);
