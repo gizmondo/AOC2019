@@ -119,7 +119,7 @@ impl Intcode {
         if offset < 0 {
             &mut self.program[address as usize]
         } else {
-            self.heap.entry(address as usize).or_insert(0)
+            self.heap.entry(offset as usize).or_insert(0)
         }
     }
 
@@ -134,7 +134,7 @@ impl Intcode {
         let value0 = self.get_value(&args[0]);
         let value1 = self.get_value(&args[1]);
         let cell = self.get_cell(&args[2]);
-        *cell = value0 + value1;
+        *cell = value0 * value1;
     }
 
     fn input(&mut self, args: &Vec<Arg>) -> AocResult<()> {
@@ -173,7 +173,7 @@ impl Intcode {
 
     fn set_relative_offset(&mut self, args: &Vec<Arg>) {
         let value = self.get_value(&args[0]);
-        self.relative_offset = value;
+        self.relative_offset += value;
     }
 
     fn halt(&mut self) {
