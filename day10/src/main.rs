@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use std::error::Error;
 use std::collections::HashMap;
 
-type AocResult<T> = std::result::Result<T, Box<Error>>;
+type AocResult<T> = std::result::Result<T, Box<dyn Error>>;
 
 fn euclid(a: i32, b: i32) -> i32 {
     if b == 0 {
@@ -89,7 +89,7 @@ fn find_best_station(input: &str) -> AocResult<Station> {
             }
         }
     }
-    result.ok_or(Box::<Error>::from("No asteroids"))
+    result.ok_or(Box::<dyn Error>::from("No asteroids"))
 }
 
 struct Ring<T> {
@@ -116,8 +116,10 @@ impl<T> Iterator for Ring<T> {
             let result = v.pop().unwrap();  // self.points must not contain empty arrays
             if v.is_empty() {
                 self.next[self.idx] = self.next[idx];
+                self.next[idx] = None;
+            } else {
+                self.idx = idx;
             }
-            self.idx = idx;
             result
         })
     }
@@ -146,7 +148,7 @@ fn nth_to_vaporize(mut station: Station, n: i32) -> AocResult<i32> {
     for _ in 0..n {
         nth = ring.next();
     }
-    nth.map(|p| 100 * p.x + p.y).ok_or(Box::<Error>::from("Illegal n"))
+    nth.map(|p| 100 * p.x + p.y).ok_or(Box::<dyn Error>::from("Illegal n"))
 }
 
 fn main() -> AocResult<()> {
@@ -164,9 +166,7 @@ mod tests {
     #[test]
     fn test_ring() -> AocResult<()> {
         let ring: Ring<i32> = Ring::new(vec![vec![1], vec![6, 4, 2], vec![5, 3]]);
-        for (left, right) in (1..=6).into_iter().zip(ring) {
-            assert_eq!(left, right);
-        }
+        assert_eq!(ring.into_iter().collect::<Vec<_>>(), (1..=6).collect::<Vec<_>>());
         Ok(())
     }
 
