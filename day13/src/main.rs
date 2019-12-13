@@ -53,13 +53,7 @@ fn part2(mut program: Vec<i64>) -> AocResult<i64> {
         if x == -1 && tile > result {
             result = tile;
         } else if tile == 4 {
-            let msg = if paddle > x {
-                -1
-            } else if paddle < x {
-                1
-            } else {
-                0
-            };
+            let msg = (x - paddle).signum();
             paddle += msg;
             sender.send(msg)?;
         }
