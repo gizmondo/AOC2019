@@ -39,7 +39,7 @@ fn part2(mut program: Vec<i64>) -> AocResult<i64> {
     program[0] = 2;
     sender.send(0)?;
 
-    let mut robot = Intcode::new(program.clone(), robot_receiver, robot_sender);
+    let mut robot = Intcode::new(program, robot_receiver, robot_sender);
     thread::spawn(move || robot.exec().unwrap());
 
     let mut paddle = get_initial_paddle(&receiver)?;
