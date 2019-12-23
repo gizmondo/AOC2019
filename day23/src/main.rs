@@ -251,6 +251,7 @@ fn simulate(program: &Vec<i64>) -> AocResult<()> {
     }
 }
 
+
 fn main() -> AocResult<()> {
     let input = fs::read_to_string("input.txt")?;
     let program = input.split(',').map(|s| s.parse::<i64>()).collect::<Result<Vec<_>, _>>()?;
