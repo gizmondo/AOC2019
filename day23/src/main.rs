@@ -4,7 +4,7 @@ use std::fs;
 use std::thread;
 use std::time::Duration;
 
-use crossbeam::crossbeam_channel::{unbounded, Sender, Receiver, Select, TryRecvError};
+use crossbeam::crossbeam_channel::{unbounded, Sender, Receiver, Select, RecvTimeoutError};
 
 pub type AocResult<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -141,9 +141,9 @@ impl Intcode {
     }
 
     fn input(&mut self, args: &Vec<Arg>) -> AocResult<()> {
-        let value = match self.input.try_recv() {
+        let value = match self.input.recv_timeout(Duration::from_millis(10)) {
             Ok(v) => v,
-            Err(TryRecvError::Empty) => -1,
+            Err(RecvTimeoutError::Timeout) => -1,
             Err(e) => return Err(Box::new(e))
         };
         let cell = self.get_cell(&args[0]);
@@ -210,7 +210,6 @@ fn simulate(program: &Vec<i64>) -> AocResult<()> {
     let mut nat_y = None;
     let mut nat_last_send = None;
     loop {
-        // FIXME: race here
         let index = match select.ready_timeout(Duration::from_millis(100)) {
             Err(_) => {
                 let sender = &senders[0];
@@ -239,7 +238,6 @@ fn simulate(program: &Vec<i64>) -> AocResult<()> {
         if addr >= 0 && addr < 50 {
             let sender = &senders[addr as usize];
             sender.send(x)?;
-            // FIXME: and race here
             sender.send(y)?;
         } else if addr == 255 {
             if let None = nat_y {
@@ -250,7 +248,6 @@ fn simulate(program: &Vec<i64>) -> AocResult<()> {
         }
     }
 }
-
 
 fn main() -> AocResult<()> {
     let input = fs::read_to_string("input.txt")?;
